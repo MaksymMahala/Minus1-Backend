@@ -4,40 +4,56 @@ const {
   recentCryptoCurrencySymbols,
   topCryptoCurrencySymbols,
 } = require("../Constants/compressCryptoSymbols");
-const { cryptocurrencies } = require("../Constants/AllSymbols");
+const { loadCryptocurrencies } = require("../Constants/JSONReader");
+const register = require("./routes/register");
+const login = require("./routes/login");
 
-require("dotenv").config();
-const PORT = process.env.PORT || 5500;
+const PORT = 5500;
 
 const app = express();
 app.use(cors());
+app.use(express.json());
 
-// Logging middleware
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.url}`);
   next();
 });
 
-app.get("/api/cryptocurrencies", (req, res) => {
-  res.status(200).json(cryptocurrencies);
+app.get("/api/cryptocurrencies", async (req, res) => {
+  try {
+    const cryptocurrencies = await loadCryptocurrencies();
+    if (cryptocurrencies.length === 0) {
+      return res
+        .status(404)
+        .json({ error: true, message: "No cryptocurrencies found" });
+    }
+    res.status(200).json(cryptocurrencies);
+  } catch (error) {
+    console.error("Error loading cryptocurrencies:", error);
+    res
+      .status(500)
+      .json({ error: true, message: "Error loading cryptocurrencies" });
+  }
 });
 
-app.get("/api/recent-cryptocurrencies", (req, res) => {
+app.get("/api/recent-cryptocurrencies", async (req, res) => {
+  const cryptocurrencies = await loadCryptocurrencies();
   const recentCryptos = cryptocurrencies.filter((crypto) =>
     recentCryptoCurrencySymbols.has(crypto.symbol)
   );
   res.status(200).json(recentCryptos);
 });
 
-app.get("/api/top-cryptocurrencies", (req, res) => {
+app.get("/api/top-cryptocurrencies", async (req, res) => {
+  const cryptocurrencies = await loadCryptocurrencies();
   const topCryptos = cryptocurrencies.filter((crypto) =>
     topCryptoCurrencySymbols.has(crypto.symbol)
   );
   res.status(200).json(topCryptos);
 });
 
-//-----> on symbol api
-app.get("/api/cryptocurrency/:symbol", (req, res) => {
+app.get("/api/cryptocurrency/:symbol", async (req, res) => {
+  const cryptocurrencies = await loadCryptocurrencies();
   const { symbol } = req.params;
   const crypto = cryptocurrencies.find(
     (c) => c.symbol === symbol.toUpperCase()
@@ -55,7 +71,9 @@ app.get("/api/cryptocurrency/:symbol", (req, res) => {
   }
 });
 
-// Error handling middleware
+app.use("/api", register);
+app.use("/api", login);
+
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: true, message: "Internal Server Error" });
