@@ -2,7 +2,7 @@
 require("dotenv").config();
 const express = require("express");
 const bcrypt = require("bcrypt");
-const User = require("../Models/Users"); // Import the User model
+const User = require("../Models/Users");
 const router = express.Router();
 
 router.post("/loginUser", async (req, res) => {
@@ -25,6 +25,7 @@ router.post("/loginUser", async (req, res) => {
       return res.status(401).json({ message: "Invalid password" });
     }
 
+    console.log("Login successful");
     return res.status(200).json({ message: "Login successful", user });
   } catch (error) {
     return res

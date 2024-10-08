@@ -7,10 +7,24 @@ const {
 const { loadCryptocurrencies } = require("../Constants/JSONReader");
 const register = require("./routes/register");
 const login = require("./routes/login");
+const lastPrices = require("./routes/last-prices");
+const mongoose = require("mongoose");
 
 const PORT = 5500;
 
 const app = express();
+
+mongoose
+  .connect(process.env.MONGODB_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => console.log("MongoDB connected successfully"))
+  .catch((error) => {
+    console.error("MongoDB connection error:", error);
+    process.exit(1);
+  });
+
 app.use(cors());
 app.use(express.json());
 
@@ -73,6 +87,7 @@ app.get("/api/cryptocurrency/:symbol", async (req, res) => {
 
 app.use("/api", register);
 app.use("/api", login);
+app.use("/api", lastPrices);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
