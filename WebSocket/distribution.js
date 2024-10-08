@@ -101,12 +101,10 @@ server.on("connection", (socket) => {
 
   let spotSocket, futuresSocket;
 
-  // Receive initial message from the client to decide which stream to subscribe to
   socket.on("message", (message) => {
     const request = JSON.parse(message);
 
     if (request.type === "spot") {
-      // Client requested Spot data
       console.log("Client requested Spot data");
       spotSocket = new WebSocket(spotStreamUrl);
 
@@ -127,7 +125,6 @@ server.on("connection", (socket) => {
         console.error("Spot WebSocket error:", error);
       });
     } else if (request.type === "futures") {
-      // Client requested Futures data
       console.log("Client requested Futures data");
       futuresSocket = new WebSocket(futuresStreamUrl);
 
