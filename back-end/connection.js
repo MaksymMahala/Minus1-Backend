@@ -7,7 +7,7 @@ const expressWs = require("express-ws"); // Import express-ws
 const app = express();
 expressWs(app); // Initialize express-ws with your app
 
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
 app.use(cors());
 app.use(express.json());
