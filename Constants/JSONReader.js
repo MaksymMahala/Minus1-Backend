@@ -1,4 +1,4 @@
-const fs = require("fs").promises; // Use promises API from fs module
+const fs = require("fs").promises;
 const path = require("path");
 
 async function loadCryptocurrencies() {
@@ -14,10 +14,10 @@ async function loadCryptocurrencies() {
 
     const cryptocurrencies = JSON.parse(data);
     console.log("Raw data read from file:", cryptocurrencies);
-    return cryptocurrencies; // Return the loaded data
+    return cryptocurrencies;
   } catch (err) {
     console.error("Error reading the file:", err.message);
-    return []; // Return the loaded data
+    return [];
   }
 }
 
