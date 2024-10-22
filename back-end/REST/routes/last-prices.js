@@ -44,10 +44,17 @@ const spotSymbols = [
   "GRTUSDT",
 ];
 
+const axiosInstance = axios.create({
+  headers: {
+    "X-MBX-APIKEY":
+      "KKrBBISLbpC5CYgQIiRQj0MULTLAlChCkorxIHLRhMXdibSap9HEEvKTly3kp4CF",
+  },
+});
+
 router.get("/last-week-prices", async (req, res) => {
   try {
     const promises = spotSymbols.map((symbol) =>
-      axios.get(
+      axiosInstance.get(
         `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1d&limit=7`
       )
     );
@@ -78,7 +85,7 @@ router.get("/last-week-prices", async (req, res) => {
 router.get("/last-day-prices", async (req, res) => {
   try {
     const promises = spotSymbols.map((symbol) =>
-      axios.get(
+      axiosInstance.get(
         `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1h&limit=24`
       )
     );
