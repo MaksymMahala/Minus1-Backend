@@ -47,7 +47,7 @@ const spotSymbols = [
 const axiosInstance = axios.create({
   headers: {
     "X-MBX-APIKEY":
-      "KKrBBISLbpC5CYgQIiRQj0MULTLAlChCkorxIHLRhMXdibSap9HEEvKTly3kp4CF",
+      "EXx4PYqXwKK8scgkf6x3yuMYcOf5EY1gDbWhDzuBnAMVr7DasNj9ioDlAI87JFhh",
   },
 });
 
