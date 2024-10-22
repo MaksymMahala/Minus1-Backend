@@ -10,7 +10,7 @@ const login = require("./routes/login");
 const lastPrices = require("./routes/last-prices");
 const mongoose = require("mongoose");
 
-const PORT = 3000;
+const PORT = 5500;
 
 const app = express();
 

@@ -2,7 +2,7 @@
 require("dotenv").config();
 const express = require("express");
 const nodemailer = require("nodemailer");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const User = require("../Models/Users");
 const router = express.Router();
 const otpStore = {};
