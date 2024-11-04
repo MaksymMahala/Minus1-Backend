@@ -15,7 +15,6 @@ const login = require("./routes/login");
 const lastPrices = require("./routes/last-prices");
 
 const PORT = 5500;
-const PORTWS = 8800;
 
 const app = express();
 expressWs(app); // Initialize express-ws with your app
@@ -234,8 +233,6 @@ app.use((err, req, res, next) => {
 });
 
 const binanceWsUrl = "wss://stream.binance.com:9443/ws";
-
-// Symbols to track
 const symbols = [
   "btcusdt",
   "ethusdt",
@@ -248,47 +245,34 @@ const symbols = [
   "ltcusdt",
   "linkusdt",
 ];
-const streams = symbols.map((symbol) => `${symbol}@ticker`).join("/");
+const streams = symbols.map((symbol) => `${symbol}@trade`).join("/");
 
-// Create a WebSocket server for frontend clients
-const wss = new WebSocket.Server({ port: PORTWS });
-
-wss.on("connection", (ws) => {
-  console.log("New client connected");
-});
-
-// Function to broadcast messages to all connected clients
-function broadcast(data) {
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify(data));
-    }
-  });
-}
-
-// Connect to Binance WebSocket and listen for ticker updates
+// Create a WebSocket connection to Binance
 const binanceWs = new WebSocket(`${binanceWsUrl}/${streams}`);
+
+let trades = [];
 
 binanceWs.on("open", () => {
   console.log("Connected to Binance WebSocket");
 });
 
 binanceWs.on("message", (data) => {
-  const tickerData = JSON.parse(data);
-  const { s: symbol, c: price } = tickerData;
-
-  // Broadcast ticker data to all frontend clients
-  broadcast({ symbol, price: parseFloat(price) });
+  const tradeData = JSON.parse(data);
+  trades.push(tradeData); // Store trades
 });
 
 binanceWs.on("error", (error) => {
-  console.error("Binance WebSocket error:", error);
+  console.error("WebSocket error:", error);
 });
 
 binanceWs.on("close", () => {
   console.log("Binance WebSocket connection closed");
 });
 
+// Endpoint to get latest trades
+app.get("/trades", (req, res) => {
+  res.json(trades);
+});
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
