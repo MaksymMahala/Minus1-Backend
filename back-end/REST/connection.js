@@ -232,134 +232,62 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: true, message: "Internal Server Error" });
 });
 
-const spotSymbols = [
+const binanceWsUrl = "wss://stream.binance.com:9443/ws";
+const clientWsPort = 8800;
+
+// Symbols to track
+const symbols = [
   "btcusdt",
   "ethusdt",
   "bnbusdt",
   "xrpusdt",
-  "ltcusdt",
   "adausdt",
-  "solusdt",
-  "dotusdt",
   "dogeusdt",
+  "dotusdt",
   "maticusdt",
-  "trxusdt",
-  "shibusdt",
-  "avaxusdt",
+  "ltcusdt",
   "linkusdt",
-  "xlmusdt",
-  "filusdt",
-  "lunausdt",
-  "etusdt",
-  "icpusdt",
-  "nearusdt",
-  "vetusdt",
-  "thetausdt",
-  "eosusdt",
-  "aaveusdt",
-  "sandusdt",
-  "manausdt",
-  "zilusdt",
-  "qtumusdt",
-  "batusdt",
-  "enjusdt",
-  "chzusdt",
-  "dgbusdt",
-  "dashusdt",
-  "nanousdt",
-  "zrxusdt",
-  "wavesusdt",
-  "ksmusdt",
-  "bttusdt",
-  "yfiusdt",
-  "grtusdt",
 ];
+const streams = symbols.map((symbol) => `${symbol}@ticker`).join("/");
 
-app.ws("/api/trading-stream", (socket, req) => {
-  console.log("Client connected to trading stream");
+// Create a WebSocket server for frontend clients
+const wss = new WebSocket.Server({ port: clientWsPort });
 
-  let spotSocket, futuresSocket;
-
-  socket.on("message", (message) => {
-    try {
-      const request = JSON.parse(message);
-
-      if (request.type === "spot") {
-        console.log("Client requested Spot data");
-        if (spotSocket) {
-          spotSocket.close();
-        }
-        const spotWsUrl = "wss://stream.binance.com:9443/ws/bnbusdt@trade"; // Example trade stream
-        spotSocket = new WebSocket(spotWsUrl);
-        handleTradingStream(spotSocket, socket);
-      } else if (request.type === "futures") {
-        console.log("Client requested Futures data");
-        if (futuresSocket) {
-          futuresSocket.close();
-        }
-        const futuresWsUrl = "wss://fstream.binance.com/ws/bnbusdt@trade"; // Example futures trade stream
-        futuresSocket = new WebSocket(futuresWsUrl);
-        handleTradingStream(futuresSocket, socket);
-      } else {
-        socket.send(
-          JSON.stringify({
-            error: "Unknown request type. Use 'spot' or 'futures'.",
-          })
-        );
-      }
-    } catch (error) {
-      console.error("Error processing message:", error);
-      socket.send(
-        JSON.stringify({ error: "Invalid message format. Please try again." })
-      );
-    }
-  });
-
-  socket.on("close", () => {
-    console.log("Client disconnected from trading stream");
-    if (spotSocket) spotSocket.close();
-    if (futuresSocket) futuresSocket.close();
-  });
+wss.on("connection", (ws) => {
+  console.log("New client connected");
 });
 
-// Function to handle trading stream messages
-const handleTradingStream = (streamSocket, clientSocket) => {
-  streamSocket.on("open", () => {
-    console.log("Trading stream connected");
+// Function to broadcast messages to all connected clients
+function broadcast(data) {
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify(data));
+    }
   });
+}
 
-  streamSocket.on("message", (data) => {
-    // Assuming data is a string of JSON format from Binance API
-    const tradeData = JSON.parse(data);
+// Connect to Binance WebSocket and listen for ticker updates
+const binanceWs = new WebSocket(`${binanceWsUrl}/${streams}`);
 
-    // Extract the symbol and price
-    const symbol = tradeData.s; // Symbol (e.g., BNBUSDT)
-    const price = tradeData.p; // Price (e.g., 300.00)
+binanceWs.on("open", () => {
+  console.log("Connected to Binance WebSocket");
+});
 
-    // Create a new object to send to the client
-    const response = {
-      symbol: symbol,
-      price: price,
-    };
+binanceWs.on("message", (data) => {
+  const tickerData = JSON.parse(data);
+  const { s: symbol, c: price } = tickerData;
 
-    // Send the symbol and price to the client
-    clientSocket.send(JSON.stringify(response));
-  });
+  // Broadcast ticker data to all frontend clients
+  broadcast({ symbol, price: parseFloat(price) });
+});
 
-  streamSocket.on("error", (error) => {
-    console.error("Trading stream error:", error);
-    clientSocket.send(
-      JSON.stringify({ error: "Error occurred in trading stream." })
-    );
-  });
+binanceWs.on("error", (error) => {
+  console.error("Binance WebSocket error:", error);
+});
 
-  streamSocket.on("close", () => {
-    console.log("Trading stream closed");
-    clientSocket.send(
-      JSON.stringify({ error: "Trading stream has been closed." })
-    );
-  });
-};
+binanceWs.on("close", () => {
+  console.log("Binance WebSocket connection closed");
+});
 
 // Start the server
 app.listen(PORT, () => {
