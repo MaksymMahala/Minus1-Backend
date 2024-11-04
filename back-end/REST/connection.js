@@ -233,52 +233,49 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: true, message: "Internal Server Error" });
 });
 
-const cryptoPrices = {};
+const COINAPI_KEY = "0543fa72-262b-4177-a651-fdb92a031e8a";
+const COINAPI_URL = "https://rest.coinapi.io/v1/exchangerate";
 
-const fetchPrices = async () => {
+let cryptoPrices = {};
+
+// Function to fetch crypto prices
+async function fetchCryptoPrices(symbols) {
   try {
-    const pricePromises = Array.from(recentCryptoCurrencySymbols).map(
-      async (symbol) => {
-        const response = await axios.get(
-          `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`
-        );
-        cryptoPrices[symbol] = parseFloat(response.data.price);
-      }
-    );
+    const pricePromises = symbols.map(async (symbol) => {
+      const response = await axios.get(`${COINAPI_URL}/${symbol}/USD`, {
+        headers: { "X-CoinAPI-Key": COINAPI_KEY },
+      });
+      return { symbol, price: response.data.rate };
+    });
 
-    await Promise.all(pricePromises);
+    const pricesArray = await Promise.all(pricePromises);
+    pricesArray.forEach(({ symbol, price }) => {
+      cryptoPrices[symbol] = price;
+    });
   } catch (error) {
-    console.error(
-      "Error fetching prices:",
-      error.response ? error.response.data : error.message
-    );
+    console.error("Error fetching prices:", error.message);
   }
-};
+}
 
-// Update prices every second
-setInterval(fetchPrices, 1000);
+// Call fetchCryptoPrices every second
+setInterval(() => fetchCryptoPrices(["BTC", "ETH", "LTC"]), 1000); // Replace with symbols you need
 
-app.get("/api/ticker", (req, res) => {
-  res.json(cryptoPrices);
-});
-
+// WebSocket setup
 app.ws("/ticker", (ws, req) => {
   console.log("New client connected");
 
   // Send current prices when a client connects
   const pricesString = Object.entries(cryptoPrices)
     .map(([symbol, price]) => `${symbol}: ${price}`)
-    .join(", "); // Create a string in the format "symbol: price"
-
-  ws.send(pricesString); // Send the string to the client
+    .join(", ");
+  ws.send(pricesString);
 
   // Send updated prices every second
   const intervalId = setInterval(() => {
     const updatedPricesString = Object.entries(cryptoPrices)
       .map(([symbol, price]) => `${symbol}: ${price}`)
-      .join(", "); // Create a string for updated prices
-
-    ws.send(updatedPricesString); // Send the updated prices string
+      .join(", ");
+    ws.send(updatedPricesString);
   }, 1000);
 
   // Handle disconnection
