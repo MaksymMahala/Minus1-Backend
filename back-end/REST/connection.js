@@ -15,6 +15,7 @@ const login = require("./routes/login");
 const lastPrices = require("./routes/last-prices");
 
 const PORT = 5500;
+const PORTWS = 8800;
 
 const app = express();
 expressWs(app); // Initialize express-ws with your app
@@ -233,7 +234,6 @@ app.use((err, req, res, next) => {
 });
 
 const binanceWsUrl = "wss://stream.binance.com:9443/ws";
-const clientWsPort = 8800;
 
 // Symbols to track
 const symbols = [
@@ -251,7 +251,7 @@ const symbols = [
 const streams = symbols.map((symbol) => `${symbol}@ticker`).join("/");
 
 // Create a WebSocket server for frontend clients
-const wss = new WebSocket.Server({ port: clientWsPort });
+const wss = new WebSocket.Server({ port: PORTWS });
 
 wss.on("connection", (ws) => {
   console.log("New client connected");
