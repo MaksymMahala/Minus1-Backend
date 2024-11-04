@@ -232,46 +232,49 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: true, message: "Internal Server Error" });
 });
 
-const binanceWsUrl = "wss://stream.binance.com:9443/ws";
-const symbols = [
-  "btcusdt",
-  "ethusdt",
-  "bnbusdt",
-  "xrpusdt",
-  "adausdt",
-  "dogeusdt",
-  "dotusdt",
-  "maticusdt",
-  "ltcusdt",
-  "linkusdt",
-];
-const streams = symbols.map((symbol) => `${symbol}@trade`).join("/");
+// Array to hold trades
+const wss = new WebSocket.Server({ port: 8080 });
 
-// Create a WebSocket connection to Binance
-const binanceWs = new WebSocket(`${binanceWsUrl}/${streams}`);
+const symbolString = Array.from(recentCryptoCurrencySymbols).join("/");
 
-let trades = [];
+// Connect to the Binance WebSocket API
+const binanceWebSocket = new WebSocket(
+  `wss://stream.binance.com:9443/ws/${symbolString}@ticker`
+);
 
-binanceWs.on("open", () => {
-  console.log("Connected to Binance WebSocket");
+// Handle messages from Binance
+binanceWebSocket.on("message", (data) => {
+  // Parse the incoming message
+  const message = JSON.parse(data);
+
+  // Broadcast the message to all connected clients
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(
+        JSON.stringify({
+          symbol: message.s,
+          price: message.c,
+        })
+      );
+    }
+  });
 });
 
-binanceWs.on("message", (data) => {
-  const tradeData = JSON.parse(data);
-  trades.push(tradeData); // Store trades
-});
+// Handle connection to the WebSocket server
+wss.on("connection", (ws) => {
+  console.log("New client connected");
 
-binanceWs.on("error", (error) => {
-  console.error("WebSocket error:", error);
-});
+  // Send a welcome message to the new client
+  ws.send(
+    JSON.stringify({
+      message: "Welcome to the Crypto Ticker WebSocket Server!",
+    })
+  );
 
-binanceWs.on("close", () => {
-  console.log("Binance WebSocket connection closed");
-});
-
-// Endpoint to get latest trades
-app.get("/trades", (req, res) => {
-  res.json(trades);
+  // Handle disconnection
+  ws.on("close", () => {
+    console.log("Client disconnected");
+  });
 });
 // Start the server
 app.listen(PORT, () => {
