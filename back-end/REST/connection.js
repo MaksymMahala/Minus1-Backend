@@ -277,70 +277,76 @@ const spotSymbols = [
 
 const futuresSymbols = [...spotSymbols];
 
-// URLs for Binance WebSocket streams
-const spotStreamUrl = createStreamUrl(spotSymbols, "stream.binance.com:9443");
-const futuresStreamUrl = createStreamUrl(futuresSymbols, "fstream.binance.com");
+const spotStreams = spotSymbols.map((symbol) => `${symbol}@ticker`).join("/");
+const spotStreamUrl = `wss://stream.binance.com:9443/stream?streams=${spotStreams}`;
 
-/**
- * Utility function to create a Binance stream URL from symbol list and host
- */
-function createStreamUrl(symbols, host) {
-  const streams = symbols.map((symbol) => `${symbol}@ticker`).join("/");
-  return `wss://${host}/stream?streams=${streams}`;
-}
+const futuresStreams = futuresSymbols
+  .map((symbol) => `${symbol}@ticker`)
+  .join("/");
+const futuresStreamUrl = `wss://fstream.binance.com/stream?streams=${futuresStreams}`;
 
 // WebSocket connection handler for trading streams
-app.ws("/api/trading-stream", (clientSocket) => {
+app.ws("/api/trading-stream", (socket, req) => {
   console.log("Client connected to trading stream");
 
   let spotSocket, futuresSocket;
 
-  clientSocket.on("message", (message) => {
+  socket.on("message", (message) => {
     try {
       const request = JSON.parse(message);
-      handleClientRequest(request, clientSocket);
+
+      if (request.type === "spot") {
+        console.log("Client requested Spot data");
+        spotSocket = new WebSocket(spotStreamUrl);
+
+        spotSocket.on("open", () => {
+          console.log("Connected to Binance Spot WebSocket stream");
+        });
+
+        spotSocket.on("message", (data) => {
+          const parsedData = JSON.parse(data);
+          const message = parsedData.data;
+          const price = message.c;
+          const symbol = message.s;
+
+          socket.send(JSON.stringify({ type: "spot", symbol, price }));
+        });
+
+        spotSocket.on("error", (error) => {
+          console.error("Spot WebSocket error:", error);
+        });
+      } else if (request.type === "futures") {
+        console.log("Client requested Futures data");
+        futuresSocket = new WebSocket(futuresStreamUrl);
+
+        futuresSocket.on("open", () => {
+          console.log("Connected to Binance Futures WebSocket stream");
+        });
+
+        futuresSocket.on("message", (data) => {
+          const parsedData = JSON.parse(data);
+          const message = parsedData.data;
+          const price = message.c;
+          const symbol = message.s;
+
+          socket.send(JSON.stringify({ type: "futures", symbol, price }));
+        });
+
+        futuresSocket.on("error", (error) => {
+          console.error("Futures WebSocket error:", error);
+        });
+      }
     } catch (error) {
       console.error(`Error processing message: ${error.message}`);
     }
   });
 
-  clientSocket.on("close", () => {
-    console.log("Client disconnected from trading stream");
-    spotSocket?.close();
-    futuresSocket?.close();
+  socket.on("close", () => {
+    console.log("Client disconnected");
+
+    if (spotSocket) spotSocket.close();
+    if (futuresSocket) futuresSocket.close();
   });
-
-  const handleClientRequest = (request, clientSocket) => {
-    if (request.type === "subscribe") {
-      const { spot, futures } = request;
-
-      if (spot) {
-        spotSocket = createTradingSocket(spotStreamUrl, clientSocket);
-      }
-      if (futures) {
-        futuresSocket = createTradingSocket(futuresStreamUrl, clientSocket);
-      }
-    }
-  };
-
-  const createTradingSocket = (url, clientSocket) => {
-    const socket = new WebSocket(url);
-
-    socket.on("message", (data) => {
-      clientSocket.send(data); // Relay messages to client
-    });
-
-    socket.on("error", (error) => {
-      console.error(`WebSocket error: ${error.message}`);
-      socket.close();
-    });
-
-    socket.on("close", () => {
-      console.log("Trading WebSocket connection closed");
-    });
-
-    return socket;
-  };
 });
 
 // Start the server
