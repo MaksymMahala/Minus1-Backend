@@ -232,6 +232,117 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: true, message: "Internal Server Error" });
 });
 
+const spotSymbols = [
+  "btcusdt",
+  "ethusdt",
+  "bnbusdt",
+  "xrpusdt",
+  "ltcusdt",
+  "adausdt",
+  "solusdt",
+  "dotusdt",
+  "dogeusdt",
+  "maticusdt",
+  "trxusdt",
+  "shibusdt",
+  "avaxusdt",
+  "linkusdt",
+  "xlmusdt",
+  "filusdt",
+  "lunausdt",
+  "etusdt",
+  "icpusdt",
+  "nearusdt",
+  "vetusdt",
+  "thetausdt",
+  "eosusdt",
+  "aaveusdt",
+  "sandusdt",
+  "manausdt",
+  "zilusdt",
+  "qtumusdt",
+  "batusdt",
+  "enjusdt",
+  "chzusdt",
+  "dgbusdt",
+  "dashusdt",
+  "nanousdt",
+  "zrxusdt",
+  "wavesusdt",
+  "ksmusdt",
+  "bttusdt",
+  "yfiusdt",
+  "grtusdt",
+];
+
+const futuresSymbols = [...spotSymbols];
+
+// URLs for Binance WebSocket streams
+const spotStreamUrl = createStreamUrl(spotSymbols, "stream.binance.com:9443");
+const futuresStreamUrl = createStreamUrl(futuresSymbols, "fstream.binance.com");
+
+/**
+ * Utility function to create a Binance stream URL from symbol list and host
+ */
+function createStreamUrl(symbols, host) {
+  const streams = symbols.map((symbol) => `${symbol}@ticker`).join("/");
+  return `wss://${host}/stream?streams=${streams}`;
+}
+
+// WebSocket connection handler for trading streams
+app.ws("/api/trading-stream", (clientSocket) => {
+  console.log("Client connected to trading stream");
+
+  let spotSocket, futuresSocket;
+
+  clientSocket.on("message", (message) => {
+    try {
+      const request = JSON.parse(message);
+      handleClientRequest(request, clientSocket);
+    } catch (error) {
+      console.error(`Error processing message: ${error.message}`);
+    }
+  });
+
+  clientSocket.on("close", () => {
+    console.log("Client disconnected from trading stream");
+    spotSocket?.close();
+    futuresSocket?.close();
+  });
+
+  const handleClientRequest = (request, clientSocket) => {
+    if (request.type === "subscribe") {
+      const { spot, futures } = request;
+
+      if (spot) {
+        spotSocket = createTradingSocket(spotStreamUrl, clientSocket);
+      }
+      if (futures) {
+        futuresSocket = createTradingSocket(futuresStreamUrl, clientSocket);
+      }
+    }
+  };
+
+  const createTradingSocket = (url, clientSocket) => {
+    const socket = new WebSocket(url);
+
+    socket.on("message", (data) => {
+      clientSocket.send(data); // Relay messages to client
+    });
+
+    socket.on("error", (error) => {
+      console.error(`WebSocket error: ${error.message}`);
+      socket.close();
+    });
+
+    socket.on("close", () => {
+      console.log("Trading WebSocket connection closed");
+    });
+
+    return socket;
+  };
+});
+
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
