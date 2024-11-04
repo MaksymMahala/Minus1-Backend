@@ -13,6 +13,7 @@ const { loadCryptocurrencies } = require("../Constants/JSONReader");
 const register = require("./routes/register");
 const login = require("./routes/login");
 const lastPrices = require("./routes/last-prices");
+const http = require("http"); // Import http module
 
 const PORT = 5500;
 
@@ -232,51 +233,60 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: true, message: "Internal Server Error" });
 });
 
-// Array to hold trades
-const wss = new WebSocket.Server({ port: 8080 });
+const cryptoPrices = {};
 
-const symbolString = Array.from(recentCryptoCurrencySymbols).join("/");
+const fetchPrices = async () => {
+  try {
+    const pricePromises = Array.from(recentCryptoCurrencySymbols).map(
+      async (symbol) => {
+        const response = await axios.get(
+          `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`
+        );
+        cryptoPrices[symbol] = parseFloat(response.data.price);
+      }
+    );
 
-// Connect to the Binance WebSocket API
-const binanceWebSocket = new WebSocket(
-  `wss://stream.binance.com:9443/ws/${symbolString}@ticker`
-);
+    await Promise.all(pricePromises);
+  } catch (error) {
+    console.error(
+      "Error fetching prices:",
+      error.response ? error.response.data : error.message
+    );
+  }
+};
 
-// Handle messages from Binance
-binanceWebSocket.on("message", (data) => {
-  // Parse the incoming message
-  const message = JSON.parse(data);
+// Update prices every second
+setInterval(fetchPrices, 1000);
 
-  // Broadcast the message to all connected clients
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(
-        JSON.stringify({
-          symbol: message.s,
-          price: message.c,
-        })
-      );
-    }
-  });
+app.get("/api/ticker", (req, res) => {
+  res.json(cryptoPrices);
 });
 
-// Handle connection to the WebSocket server
-wss.on("connection", (ws) => {
+app.ws("/ticker", (ws, req) => {
   console.log("New client connected");
 
-  // Send a welcome message to the new client
-  ws.send(
-    JSON.stringify({
-      message: "Welcome to the Crypto Ticker WebSocket Server!",
-    })
-  );
+  // Send current prices when a client connects
+  const pricesString = Object.entries(cryptoPrices)
+    .map(([symbol, price]) => `${symbol}: ${price}`)
+    .join(", "); // Create a string in the format "symbol: price"
+
+  ws.send(pricesString); // Send the string to the client
+
+  // Send updated prices every second
+  const intervalId = setInterval(() => {
+    const updatedPricesString = Object.entries(cryptoPrices)
+      .map(([symbol, price]) => `${symbol}: ${price}`)
+      .join(", "); // Create a string for updated prices
+
+    ws.send(updatedPricesString); // Send the updated prices string
+  }, 1000);
 
   // Handle disconnection
   ws.on("close", () => {
     console.log("Client disconnected");
+    clearInterval(intervalId);
   });
 });
-// Start the server
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
