@@ -275,17 +275,6 @@ const spotSymbols = [
   "grtusdt",
 ];
 
-const futuresSymbols = [...spotSymbols];
-
-const spotStreams = spotSymbols.map((symbol) => `${symbol}@ticker`).join("/");
-const spotStreamUrl = `wss://stream.binance.com:9443/stream?streams=${spotStreams}`;
-
-const futuresStreams = futuresSymbols
-  .map((symbol) => `${symbol}@ticker`)
-  .join("/");
-const futuresStreamUrl = `wss://fstream.binance.com/stream?streams=${futuresStreams}`;
-
-// WebSocket connection handler for trading streams
 app.ws("/api/trading-stream", (socket, req) => {
   console.log("Client connected to trading stream");
 
@@ -297,57 +286,80 @@ app.ws("/api/trading-stream", (socket, req) => {
 
       if (request.type === "spot") {
         console.log("Client requested Spot data");
-        spotSocket = new WebSocket(spotStreamUrl);
-
-        spotSocket.on("open", () => {
-          console.log("Connected to Binance Spot WebSocket stream");
-        });
-
-        spotSocket.on("message", (data) => {
-          const parsedData = JSON.parse(data);
-          const message = parsedData.data;
-          const price = message.c;
-          const symbol = message.s;
-
-          socket.send(JSON.stringify({ type: "spot", symbol, price }));
-        });
-
-        spotSocket.on("error", (error) => {
-          console.error("Spot WebSocket error:", error);
-        });
+        if (spotSocket) {
+          spotSocket.close();
+        }
+        const spotWsUrl = "wss://stream.binance.com:9443/ws/bnbusdt@trade"; // Example trade stream
+        spotSocket = new WebSocket(spotWsUrl);
+        handleTradingStream(spotSocket, socket);
       } else if (request.type === "futures") {
         console.log("Client requested Futures data");
-        futuresSocket = new WebSocket(futuresStreamUrl);
-
-        futuresSocket.on("open", () => {
-          console.log("Connected to Binance Futures WebSocket stream");
-        });
-
-        futuresSocket.on("message", (data) => {
-          const parsedData = JSON.parse(data);
-          const message = parsedData.data;
-          const price = message.c;
-          const symbol = message.s;
-
-          socket.send(JSON.stringify({ type: "futures", symbol, price }));
-        });
-
-        futuresSocket.on("error", (error) => {
-          console.error("Futures WebSocket error:", error);
-        });
+        if (futuresSocket) {
+          futuresSocket.close();
+        }
+        const futuresWsUrl = "wss://fstream.binance.com/ws/bnbusdt@trade"; // Example futures trade stream
+        futuresSocket = new WebSocket(futuresWsUrl);
+        handleTradingStream(futuresSocket, socket);
+      } else {
+        socket.send(
+          JSON.stringify({
+            error: "Unknown request type. Use 'spot' or 'futures'.",
+          })
+        );
       }
     } catch (error) {
-      console.error(`Error processing message: ${error.message}`);
+      console.error("Error processing message:", error);
+      socket.send(
+        JSON.stringify({ error: "Invalid message format. Please try again." })
+      );
     }
   });
 
   socket.on("close", () => {
-    console.log("Client disconnected");
-
+    console.log("Client disconnected from trading stream");
     if (spotSocket) spotSocket.close();
     if (futuresSocket) futuresSocket.close();
   });
 });
+
+// Function to handle trading stream messages
+const handleTradingStream = (streamSocket, clientSocket) => {
+  streamSocket.on("open", () => {
+    console.log("Trading stream connected");
+  });
+
+  streamSocket.on("message", (data) => {
+    // Assuming data is a string of JSON format from Binance API
+    const tradeData = JSON.parse(data);
+
+    // Extract the symbol and price
+    const symbol = tradeData.s; // Symbol (e.g., BNBUSDT)
+    const price = tradeData.p; // Price (e.g., 300.00)
+
+    // Create a new object to send to the client
+    const response = {
+      symbol: symbol,
+      price: price,
+    };
+
+    // Send the symbol and price to the client
+    clientSocket.send(JSON.stringify(response));
+  });
+
+  streamSocket.on("error", (error) => {
+    console.error("Trading stream error:", error);
+    clientSocket.send(
+      JSON.stringify({ error: "Error occurred in trading stream." })
+    );
+  });
+
+  streamSocket.on("close", () => {
+    console.log("Trading stream closed");
+    clientSocket.send(
+      JSON.stringify({ error: "Trading stream has been closed." })
+    );
+  });
+};
 
 // Start the server
 app.listen(PORT, () => {

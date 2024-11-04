@@ -3,18 +3,86 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Crypto Tracker</title>
-    <link rel="stylesheet" href="styles.css" />
+    <title>Trading Stream Client</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+      }
+      #logs {
+        border: 1px solid #ccc;
+        padding: 10px;
+        height: 300px;
+        overflow-y: scroll;
+      }
+      button {
+        margin: 5px;
+        padding: 10px 15px;
+        font-size: 16px;
+      }
+    </style>
   </head>
   <body>
-    <div class="container">
-      <h1>Cryptocurrency Tracker</h1>
-      <div id="coin-list"></div>
-      <!-- This is where coin updates will be displayed -->
-    </div>
+    <h1>Trading Stream Client</h1>
+    <button id="spotButton">Connect to Spot Stream</button>
+    <button id="futuresButton">Connect to Futures Stream</button>
+    <button id="disconnectButton">Disconnect</button>
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="app.js"></script>
-    <!-- Your JavaScript file -->
+    <h2>Logs</h2>
+    <div id="logs"></div>
+
+    <script>
+      const logsDiv = document.getElementById("logs");
+      let socket;
+
+      function logMessage(message) {
+        const messageElement = document.createElement("div");
+        messageElement.textContent = message;
+        logsDiv.appendChild(messageElement);
+        logsDiv.scrollTop = logsDiv.scrollHeight; // Auto-scroll to the bottom
+      }
+
+      document.getElementById("spotButton").addEventListener("click", () => {
+        connectToStream("spot");
+      });
+
+      document.getElementById("futuresButton").addEventListener("click", () => {
+        connectToStream("futures");
+      });
+
+      document
+        .getElementById("disconnectButton")
+        .addEventListener("click", () => {
+          if (socket) {
+            socket.close();
+            logMessage("Disconnected from the trading stream.");
+          }
+        });
+
+      function connectToStream(type) {
+        if (socket) {
+          socket.close(); // Close any existing connection
+        }
+        socket = new WebSocket("ws://localhost:5500/api/trading-stream"); // Update the port if needed
+
+        socket.onopen = () => {
+          logMessage(`Connected to ${type} stream`);
+          socket.send(JSON.stringify({ type: type }));
+        };
+
+        socket.onmessage = (event) => {
+          logMessage(`Received: ${event.data}`);
+        };
+
+        socket.onerror = (error) => {
+          logMessage(`WebSocket error: ${error.message}`);
+        };
+
+        socket.onclose = () => {
+          logMessage("WebSocket connection closed");
+        };
+      }
+    </script>
   </body>
 </html>
