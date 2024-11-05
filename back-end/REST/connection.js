@@ -9,6 +9,7 @@ const {
   recentCryptoCurrencySymbols,
   topCryptoCurrencySymbols,
 } = require("../Constants/compressCryptoSymbols");
+const { pricesArray } = require("../Constants/compressCryptoSymbols");
 const { loadCryptocurrencies } = require("../Constants/JSONReader");
 const register = require("./routes/register");
 const login = require("./routes/login");
@@ -314,6 +315,97 @@ app.ws("/ticker", (ws) => {
   ws.on("close", () => {
     console.log("Client disconnected");
     clearInterval(intervalId);
+  });
+});
+
+app.get("/api/prices/:symbol", async (req, res) => {
+  const symbol = req.params.symbol.toUpperCase(); // Extract symbol from request params
+
+  // Check if the symbol is valid
+  if (!pricesArray.has(symbol)) {
+    return res.status(400).json({ error: "Invalid symbol" });
+  }
+
+  try {
+    const response = await axios.get(
+      `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`
+    );
+
+    // Return the price for the requested symbol
+    res.json({
+      symbol: response.data.symbol,
+      price: response.data.price,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error fetching price" });
+  }
+});
+
+// Endpoint to get prices for all symbols
+app.get("/api/prices", async (req, res) => {
+  try {
+    const pricesArray = Array.from(prices);
+    const pricePromises = pricesArray.map(async (symbol) => {
+      const response = await axios.get(
+        `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`
+      );
+      return {
+        symbol: response.data.symbol,
+        price: response.data.price,
+      };
+    });
+
+    const allPrices = await Promise.all(pricePromises);
+    res.json(allPrices);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error fetching prices" });
+  }
+});
+
+const http = require("http"); // Import http for WebSocket server
+const server = http.createServer(app); // Create an HTTP server
+const wss = new WebSocket.Server({ server }); // Create a WebSocket server
+
+wss.on("connection", (ws, req) => {
+  const { symbol, interval } = req.params;
+
+  // Ensure the symbol is valid
+  if (!pricesArray.has(symbol.toUpperCase())) {
+    ws.close();
+    return;
+  }
+
+  // Create a connection to Binance's candlestick stream
+  const binanceWebSocket = new WebSocket(
+    `wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@kline_${interval}`
+  );
+
+  binanceWebSocket.on("message", (data) => {
+    const candlestickData = JSON.parse(data);
+    const kline = candlestickData.k; // Extract the candlestick data
+
+    // Send the candlestick data to the WebSocket client
+    ws.send(
+      JSON.stringify({
+        open: kline.o,
+        high: kline.h,
+        low: kline.l,
+        volume: kline.v,
+        openTime: kline.t,
+        closeTime: kline.T,
+      })
+    );
+  });
+
+  ws.on("close", () => {
+    binanceWebSocket.close();
+  });
+
+  ws.on("error", (error) => {
+    console.error("WebSocket error:", error);
+    binanceWebSocket.close();
   });
 });
 
