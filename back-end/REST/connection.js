@@ -9,13 +9,14 @@ const {
   recentCryptoCurrencySymbols,
   topCryptoCurrencySymbols,
 } = require("../Constants/compressCryptoSymbols");
+
+const { pricesArray } = require("../Constants/compressCryptoSymbols");
 const { loadCryptocurrencies } = require("../Constants/JSONReader");
 const register = require("./routes/register");
 const login = require("./routes/login");
 const lastPrices = require("./routes/last-prices");
-const http = require("http"); // Import http module
 
-const PORT = 5500;
+const PORT = 6500;
 
 const app = express();
 expressWs(app); // Initialize express-ws with your app
@@ -233,57 +234,97 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: true, message: "Internal Server Error" });
 });
 
-const COINAPI_KEY = "0543fa72-262b-4177-a651-fdb92a031e8a";
-const COINAPI_URL = "https://rest.coinapi.io/v1/exchangerate";
+app.get("/api/prices/:symbol", async (req, res) => {
+  const symbol = req.params.symbol.toUpperCase(); // Extract symbol from request params
 
-let cryptoPrices = {};
+  // Check if the symbol is valid
+  if (!pricesArray.has(symbol)) {
+    return res.status(400).json({ error: "Invalid symbol" });
+  }
 
-// Function to fetch crypto prices
-async function fetchCryptoPrices(symbols) {
   try {
-    const pricePromises = symbols.map(async (symbol) => {
-      const response = await axios.get(`${COINAPI_URL}/${symbol}/USD`, {
-        headers: { "X-CoinAPI-Key": COINAPI_KEY },
-      });
-      return { symbol, price: response.data.rate };
-    });
+    const response = await axios.get(
+      `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`
+    );
 
-    const pricesArray = await Promise.all(pricePromises);
-    pricesArray.forEach(({ symbol, price }) => {
-      cryptoPrices[symbol] = price;
+    // Return the price for the requested symbol
+    res.json({
+      symbol: response.data.symbol,
+      price: response.data.price,
     });
   } catch (error) {
-    console.error("Error fetching prices:", error.message);
+    console.error(error);
+    res.status(500).json({ error: "Error fetching price" });
   }
-}
+});
 
-// Call fetchCryptoPrices every second
-setInterval(() => fetchCryptoPrices(["BTC", "ETH", "LTC"]), 1000); // Replace with symbols you need
+// Endpoint to get prices for all symbols
+app.get("/api/prices", async (req, res) => {
+  try {
+    const pricesArray = Array.from(prices);
+    const pricePromises = pricesArray.map(async (symbol) => {
+      const response = await axios.get(
+        `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`
+      );
+      return {
+        symbol: response.data.symbol,
+        price: response.data.price,
+      };
+    });
 
-// WebSocket setup
-app.ws("/ticker", (ws, req) => {
-  console.log("New client connected");
+    const allPrices = await Promise.all(pricePromises);
+    res.json(allPrices);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error fetching prices" });
+  }
+});
 
-  // Send current prices when a client connects
-  const pricesString = Object.entries(cryptoPrices)
-    .map(([symbol, price]) => `${symbol}: ${price}`)
-    .join(", ");
-  ws.send(pricesString);
+const http = require("http"); // Import http for WebSocket server
+const server = http.createServer(app); // Create an HTTP server
+const wss = new WebSocket.Server({ server }); // Create a WebSocket server
 
-  // Send updated prices every second
-  const intervalId = setInterval(() => {
-    const updatedPricesString = Object.entries(cryptoPrices)
-      .map(([symbol, price]) => `${symbol}: ${price}`)
-      .join(", ");
-    ws.send(updatedPricesString);
-  }, 1000);
+wss.on("connection", (ws, req) => {
+  const { symbol, interval } = req.params;
 
-  // Handle disconnection
+  // Ensure the symbol is valid
+  if (!prices.has(symbol.toUpperCase())) {
+    ws.close();
+    return;
+  }
+
+  // Create a connection to Binance's candlestick stream
+  const binanceWebSocket = new WebSocket(
+    `wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@kline_${interval}`
+  );
+
+  binanceWebSocket.on("message", (data) => {
+    const candlestickData = JSON.parse(data);
+    const kline = candlestickData.k; // Extract the candlestick data
+
+    // Send the candlestick data to the WebSocket client
+    ws.send(
+      JSON.stringify({
+        open: kline.o,
+        high: kline.h,
+        low: kline.l,
+        volume: kline.v,
+        openTime: kline.t,
+        closeTime: kline.T,
+      })
+    );
+  });
+
   ws.on("close", () => {
-    console.log("Client disconnected");
-    clearInterval(intervalId);
+    binanceWebSocket.close();
+  });
+
+  ws.on("error", (error) => {
+    console.error("WebSocket error:", error);
+    binanceWebSocket.close();
   });
 });
+
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });

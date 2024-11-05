@@ -35,7 +35,44 @@ const topCryptoCurrencySymbols = new Set([
   "LTCUSDT",
 ]);
 
-module.exports = { recentCryptoCurrencySymbols, topCryptoCurrencySymbols };
+const pricesArray = new Set([
+  "APTUSDT",
+  "FTMUSDT",
+  "NEARUSDT",
+  "GRTUSDT",
+  "ATOMUSDT",
+  "ICPUSDT",
+  "FILUSDT",
+  "ALGOUSDT",
+  "VETUSDT",
+  "AAVEUSDT",
+  "FTTUSDT",
+  "SANDUSDT",
+  "MANAUSDT",
+  "FLOWUSDT",
+  "EOSUSDT",
+  "BTCUSDT",
+  "ETHUSDT",
+  "USDTUSDT",
+  "BNBUSDT",
+  "XRPUSDT",
+  "ADAUSDT",
+  "SOLUSDT",
+  "DOTUSDT",
+  "DOGEUSDT",
+  "MATICUSDT",
+  "TRXUSDT",
+  "SHIBUSDT",
+  "AVAXUSDT",
+  "LINKUSDT",
+  "LTCUSDT",
+]);
+
+module.exports = {
+  recentCryptoCurrencySymbols,
+  topCryptoCurrencySymbols,
+  pricesArray,
+};
 
 // const WebSocket = require("ws");
 
