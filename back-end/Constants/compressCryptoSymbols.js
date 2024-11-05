@@ -4,14 +4,35 @@ const recentCryptoCurrencySymbols = new Set([
   "FTMUSDT",
   "NEARUSDT",
   "GRTUSDT",
+  "ATOMUSDT",
+  "ICPUSDT",
+  "FILUSDT",
+  "ALGOUSDT",
+  "VETUSDT",
+  "AAVEUSDT",
+  "FTTUSDT",
+  "SANDUSDT",
+  "MANAUSDT",
+  "FLOWUSDT",
+  "EOSUSDT",
 ]);
 
 const topCryptoCurrencySymbols = new Set([
   "BTCUSDT",
   "ETHUSDT",
+  "USDTUSDT",
   "BNBUSDT",
   "XRPUSDT",
   "ADAUSDT",
+  "SOLUSDT",
+  "DOTUSDT",
+  "DOGEUSDT",
+  "MATICUSDT",
+  "TRXUSDT",
+  "SHIBUSDT",
+  "AVAXUSDT",
+  "LINKUSDT",
+  "LTCUSDT",
 ]);
 
 module.exports = { recentCryptoCurrencySymbols, topCryptoCurrencySymbols };
