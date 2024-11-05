@@ -236,7 +236,9 @@ const COINAPI_KEY = "0543fa72-262b-4177-a651-fdb92a031e8a";
 const COINAPI_URL = "https://rest.coinapi.io/v1/exchangerate";
 
 let cryptoPrices = {};
+let previousPrices = {};
 
+// Fetch price for a specific symbol from Binance
 async function fetchCryptoPrice(symbol) {
   try {
     const response = await fetch(
@@ -256,41 +258,52 @@ async function fetchCryptoPrice(symbol) {
   }
 }
 
+// Fetch prices for all symbols in a set at staggered intervals
 function fetchCryptoPrices(symbolsSet) {
   const symbolsArray = Array.from(symbolsSet);
 
-  symbolsArray.forEach((symbol) => {
-    fetchCryptoPrice(symbol)
-      .then((price) => {
-        if (price !== null) {
-          cryptoPrices[symbol] = price; // Update the dictionary only if the price is valid
-        }
-      })
-      .catch((error) => {
-        console.error(`Error fetching price for ${symbol}:`, error);
-      });
+  symbolsArray.forEach((symbol, index) => {
+    setTimeout(() => {
+      fetchCryptoPrice(symbol)
+        .then((price) => {
+          if (price !== null) {
+            cryptoPrices[symbol] = price; // Update the dictionary only if the price is valid
+          }
+        })
+        .catch((error) => {
+          console.error(`Error fetching price for ${symbol}:`, error);
+        });
+    }, index * 2000); // Stagger requests by 2 seconds each
   });
 }
 
-// Call fetchCryptoPrices every second for recentCryptoCurrencySymbols
-setInterval(() => fetchCryptoPrices(recentCryptoCurrencySymbols), 1000);
+// Call fetchCryptoPrices every 10 seconds for recentCryptoCurrencySymbols
+setInterval(() => fetchCryptoPrices(recentCryptoCurrencySymbols), 10000);
 
 // WebSocket setup
 app.ws("/ticker", (ws, req) => {
   console.log("New client connected");
 
-  // Send current prices when a client connects
-  const pricesString = Object.entries(cryptoPrices)
-    .map(([symbol, price]) => `${symbol}: ${price}`)
-    .join(", ");
-  ws.send(pricesString);
-
-  // Send updated prices every second
-  const intervalId = setInterval(() => {
-    const updatedPricesString = Object.entries(cryptoPrices)
+  // Send initial prices to the client
+  const sendPrices = () => {
+    const pricesString = Object.entries(cryptoPrices)
       .map(([symbol, price]) => `${symbol}: ${price}`)
       .join(", ");
-    ws.send(updatedPricesString);
+    ws.send(pricesString);
+  };
+
+  sendPrices();
+
+  // Send only updated prices every second
+  const intervalId = setInterval(() => {
+    const hasUpdates = Object.keys(cryptoPrices).some(
+      (symbol) => cryptoPrices[symbol] !== previousPrices[symbol]
+    );
+
+    if (hasUpdates) {
+      previousPrices = { ...cryptoPrices }; // Update previousPrices
+      sendPrices(); // Send only if prices changed
+    }
   }, 1000);
 
   // Handle disconnection
