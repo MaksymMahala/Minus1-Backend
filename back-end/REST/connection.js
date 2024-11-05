@@ -237,43 +237,27 @@ const COINAPI_URL = "https://rest.coinapi.io/v1/exchangerate";
 
 let cryptoPrices = {};
 
-async function fetchCryptoPrice(symbol) {
+// Function to fetch crypto prices
+async function fetchCryptoPrices(symbols) {
   try {
-    const response = await fetch(
-      `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`
-    );
-    const data = await response.json();
+    const pricePromises = symbols.map(async (symbol) => {
+      const response = await axios.get(`${COINAPI_URL}/${symbol}/USD`, {
+        headers: { "X-CoinAPI-Key": COINAPI_KEY },
+      });
+      return { symbol, price: response.data.rate };
+    });
 
-    if (data.price) {
-      return parseFloat(data.price); // Return the price as a number
-    } else {
-      console.error(`No price found for symbol: ${symbol}`);
-      return null;
-    }
+    const pricesArray = await Promise.all(pricePromises);
+    pricesArray.forEach(({ symbol, price }) => {
+      cryptoPrices[symbol] = price;
+    });
   } catch (error) {
-    console.error(`Error fetching price for ${symbol}:`, error);
-    return null;
+    console.error("Error fetching prices:", error.message);
   }
 }
 
-function fetchCryptoPrices(symbolsSet) {
-  const symbolsArray = Array.from(symbolsSet);
-
-  symbolsArray.forEach((symbol) => {
-    fetchCryptoPrice(symbol)
-      .then((price) => {
-        if (price !== null) {
-          cryptoPrices[symbol] = price; // Update the dictionary only if the price is valid
-        }
-      })
-      .catch((error) => {
-        console.error(`Error fetching price for ${symbol}:`, error);
-      });
-  });
-}
-
-// Call fetchCryptoPrices every second for recentCryptoCurrencySymbols
-setInterval(() => fetchCryptoPrices(recentCryptoCurrencySymbols), 1000);
+// Call fetchCryptoPrices every second
+setInterval(() => fetchCryptoPrices(["BTC", "ETH", "LTC"]), 1000); // Replace with symbols you need
 
 // WebSocket setup
 app.ws("/ticker", (ws, req) => {
@@ -299,7 +283,6 @@ app.ws("/ticker", (ws, req) => {
     clearInterval(intervalId);
   });
 });
-
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
