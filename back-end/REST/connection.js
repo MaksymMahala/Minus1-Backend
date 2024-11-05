@@ -234,22 +234,28 @@ app.use((err, req, res, next) => {
 
 const COINAPI_KEY = "0543fa72-262b-4177-a651-fdb92a031e8a";
 const COINAPI_URL = "https://rest.coinapi.io/v1/exchangerate";
-
 let cryptoPrices = {};
 
 // Function to fetch crypto prices
 async function fetchCryptoPrices(symbols) {
   try {
     const pricePromises = symbols.map(async (symbol) => {
-      const response = await axios.get(`${COINAPI_URL}/${symbol}/USD`, {
-        headers: { "X-CoinAPI-Key": COINAPI_KEY },
-      });
-      return { symbol, price: response.data.rate };
+      try {
+        const response = await axios.get(`${COINAPI_URL}/${symbol}/USD`, {
+          headers: { "X-CoinAPI-Key": COINAPI_KEY },
+        });
+        return { symbol, price: response.data.rate };
+      } catch (error) {
+        console.error(`Error fetching price for ${symbol}:`, error);
+        return { symbol, price: null }; // Handle failed fetch gracefully
+      }
     });
 
     const pricesArray = await Promise.all(pricePromises);
     pricesArray.forEach(({ symbol, price }) => {
-      cryptoPrices[symbol] = price;
+      if (price !== null) {
+        cryptoPrices[symbol] = price;
+      }
     });
   } catch (error) {
     console.error("Error fetching prices:", error.message);
@@ -257,7 +263,7 @@ async function fetchCryptoPrices(symbols) {
 }
 
 // Call fetchCryptoPrices every second
-setInterval(() => fetchCryptoPrices(["BTC", "ETH", "LTC"]), 1000); // Replace with symbols you need
+setInterval(() => fetchCryptoPrices(["BTC", "ETH", "LTC", "BNB", "XRP"]), 1000); // Include symbols you need
 
 // WebSocket setup
 app.ws("/ticker", (ws, req) => {
@@ -283,6 +289,7 @@ app.ws("/ticker", (ws, req) => {
     clearInterval(intervalId);
   });
 });
+
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
