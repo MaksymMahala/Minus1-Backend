@@ -235,55 +235,58 @@ app.use((err, req, res, next) => {
 const COINAPI_KEY = "0543fa72-262b-4177-a651-fdb92a031e8a";
 const COINAPI_URL = "https://rest.coinapi.io/v1/exchangerate";
 
+const stableSymbolsSet = new Set(["BTCUSDT", "ETHUSDT", "BNBUSDT"]);
 let cryptoPrices = {};
 let previousPrices = {};
 
-const stableSymbolsSet = new Set(["BTCUSDT", "ETHUSDT", "BNBUSDT"]);
-
-// Fetch price for a specific symbol from Binance
-async function fetchCryptoPrice(symbol) {
+// Fetch price for a specific symbol with retry logic
+async function fetchCryptoPrice(symbol, retries = 3) {
   try {
     const response = await fetch(
       `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`
     );
+    if (!response.ok) throw new Error(`Failed to fetch for symbol: ${symbol}`);
+
     const data = await response.json();
 
     if (data.price) {
-      return parseFloat(data.price); // Return the price as a number
+      return parseFloat(data.price);
     } else {
-      console.error(`No price found for symbol: ${symbol}`);
+      console.error(`No price data found for symbol: ${symbol}`);
       return null;
     }
   } catch (error) {
     console.error(`Error fetching price for ${symbol}:`, error);
+    if (retries > 0) {
+      console.log(`Retrying for ${symbol}, attempts left: ${retries - 1}`);
+      return fetchCryptoPrice(symbol, retries - 1);
+    }
     return null;
   }
 }
 
-// Fetch prices for all symbols in a set at staggered intervals
+// Fetch prices for all symbols in a set
 function fetchCryptoPrices(symbolsSet) {
-  const symbolsArray = Array.from(symbolsSet);
-
-  symbolsArray.forEach((symbol, index) => {
+  symbolsSet.forEach((symbol, index) => {
     setTimeout(() => {
       fetchCryptoPrice(symbol)
         .then((price) => {
           if (price !== null) {
-            cryptoPrices[symbol] = price; // Update the dictionary only if the price is valid
+            cryptoPrices[symbol] = price;
           }
         })
-        .catch((error) => {
-          console.error(`Error fetching price for ${symbol}:`, error);
-        });
-    }, index * 2000); // Stagger requests by 2 seconds each
+        .catch((error) =>
+          console.error(`Error fetching price for ${symbol}:`, error)
+        );
+    }, index * 2000);
   });
 }
 
-// Call fetchCryptoPrices every 10 seconds for stableSymbolsSet
+// Regularly fetch prices
 setInterval(() => fetchCryptoPrices(stableSymbolsSet), 10000);
 
 // WebSocket setup
-app.ws("/ticker", (ws, req) => {
+app.ws("/ticker", (ws) => {
   console.log("New client connected");
 
   // Send initial prices to the client
@@ -296,19 +299,18 @@ app.ws("/ticker", (ws, req) => {
 
   sendPrices();
 
-  // Send only updated prices every second
+  // Only send updated prices every second
   const intervalId = setInterval(() => {
     const hasUpdates = Object.keys(cryptoPrices).some(
       (symbol) => cryptoPrices[symbol] !== previousPrices[symbol]
     );
 
     if (hasUpdates) {
-      previousPrices = { ...cryptoPrices }; // Update previousPrices
-      sendPrices(); // Send only if prices changed
+      previousPrices = { ...cryptoPrices };
+      sendPrices();
     }
   }, 1000);
 
-  // Handle disconnection
   ws.on("close", () => {
     console.log("Client disconnected");
     clearInterval(intervalId);
