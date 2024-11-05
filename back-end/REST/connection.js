@@ -238,6 +238,8 @@ const COINAPI_URL = "https://rest.coinapi.io/v1/exchangerate";
 let cryptoPrices = {};
 let previousPrices = {};
 
+const stableSymbolsSet = new Set(["BTCUSDT", "ETHUSDT", "BNBUSDT"]);
+
 // Fetch price for a specific symbol from Binance
 async function fetchCryptoPrice(symbol) {
   try {
@@ -277,8 +279,8 @@ function fetchCryptoPrices(symbolsSet) {
   });
 }
 
-// Call fetchCryptoPrices every 10 seconds for recentCryptoCurrencySymbols
-setInterval(() => fetchCryptoPrices(recentCryptoCurrencySymbols), 10000);
+// Call fetchCryptoPrices every 10 seconds for stableSymbolsSet
+setInterval(() => fetchCryptoPrices(stableSymbolsSet), 10000);
 
 // WebSocket setup
 app.ws("/ticker", (ws, req) => {
