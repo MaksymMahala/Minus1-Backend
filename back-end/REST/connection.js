@@ -13,6 +13,7 @@ const { loadCryptocurrencies } = require("../Constants/JSONReader");
 const register = require("./routes/register");
 const login = require("./routes/login");
 const lastPrices = require("./routes/last-prices");
+const CryptoAPIService = require("./routes/candleData");
 
 const PORT = 5500;
 
@@ -107,6 +108,28 @@ app.get("/api/cryptocurrency/:symbol", async (req, res) => {
 app.use("/api", register);
 app.use("/api", login);
 app.use("/api", lastPrices);
+
+const cryptoAPIService = new CryptoAPIService();
+
+app.get("/api/candles", async (req, res) => {
+  const { symbol, interval, limit } = req.query;
+
+  if (!symbol || !interval || !limit) {
+    return res.status(400).json({ error: "Missing required parameters" });
+  }
+
+  try {
+    const candles = await cryptoAPIService.fetchCandles(
+      symbol,
+      interval,
+      parseInt(limit)
+    );
+    res.status(200).json(candles);
+  } catch (error) {
+    console.error("Error fetching candlestick data:", error.message);
+    res.status(500).json({ error: "Error fetching candlestick data" });
+  }
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {
