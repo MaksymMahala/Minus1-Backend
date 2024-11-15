@@ -120,7 +120,7 @@ app.get("/api/candles", async (req, res) => {
   }
 
   try {
-    // Fetch candlestick data from the API
+    // Fetch candlestick data from the CryptoAPIService
     const candles = await cryptoAPIService.fetchCandles(
       symbol,
       interval,
@@ -129,7 +129,7 @@ app.get("/api/candles", async (req, res) => {
 
     // Check if the data exists
     if (candles && candles.length > 0) {
-      res.status(200).json(candles); // Send candlestick data in the response
+      res.status(200).json(candles); // Send the fetched candlestick data in the response
     } else {
       console.error(
         `No candlestick data found for ${symbol} with interval ${interval} and limit ${limit}`
@@ -144,7 +144,7 @@ app.get("/api/candles", async (req, res) => {
       console.error("API Response Error:", error.response.data); // Detailed error from API response
       console.error("API Response Status:", error.response.status); // Status code
     } else if (error.request) {
-      console.error("API Request Error:", error.request); // Request info if the response is not received
+      console.error("API Request Error:", error.request); // Request info if no response is received
     } else {
       console.error("General Error:", error.message); // Other errors
     }
