@@ -3,11 +3,15 @@ const axios = require("axios");
 class CryptoAPIService {
   async fetchCandles(symbol, interval, limit) {
     try {
-      // CoinGecko API endpoint for market chart data
+      // CoinGecko API endpoint with the necessary parameters
       const url = `https://api.coingecko.com/api/v3/coins/${symbol}/market_chart?vs_currency=usd&days=${limit}&interval=${interval}`;
 
-      // Fetch data from CoinGecko
-      const response = await axios.get(url);
+      // If API key is required, add it to the headers
+      const response = await axios.get(url, {
+        headers: {
+          Authorization: "Bearer CG-ihZ3z57st7v4uH98rhiY9BWK", // Replace with your API key
+        },
+      });
 
       if (response.data && response.data.prices) {
         console.log("Data fetched successfully:", response.data.prices);
