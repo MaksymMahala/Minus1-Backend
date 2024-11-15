@@ -1,25 +1,25 @@
-// CryptoAPIService.js
 const axios = require("axios");
 
 class CryptoAPIService {
+  // Fetch candlestick data from Binance
   async fetchCandles(symbol, interval, limit) {
     try {
-      const url = `https://minus1-backend.onrender.com/api/candles?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+      const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
 
-      // Make a GET request
+      // Make a GET request to Binance API
       const response = await axios.get(url);
 
       // Check if data is received
-      if (response.data) {
+      if (response.data && response.data.length > 0) {
         console.log("Data fetched successfully:", response.data);
-        return response.data; // Return candle data
+        return response.data; // Return candlestick data
       } else {
-        console.error("No data received");
+        console.error("No data received from Binance");
         return null;
       }
     } catch (error) {
-      console.error("Error fetching data:", error.message);
-      throw error; // Re-throw the error for further handling if needed
+      console.error("Error fetching data from Binance:", error.message);
+      throw error; // Re-throw the error for further handling
     }
   }
 }
