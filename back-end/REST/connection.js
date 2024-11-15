@@ -114,17 +114,24 @@ const cryptoAPIService = new CryptoAPIService();
 app.get("/api/candles", async (req, res) => {
   const { symbol, interval, limit } = req.query;
 
+  // Validate required parameters
   if (!symbol || !interval || !limit) {
     return res.status(400).json({ error: "Missing required parameters" });
   }
 
   try {
+    // Fetch candlestick data
     const candles = await cryptoAPIService.fetchCandles(
       symbol,
       interval,
       parseInt(limit)
     );
-    res.status(200).json(candles);
+
+    if (candles) {
+      res.status(200).json(candles); // Send candlestick data in the response
+    } else {
+      res.status(500).json({ error: "No candlestick data found" });
+    }
   } catch (error) {
     console.error("Error fetching candlestick data:", error.message);
     res.status(500).json({ error: "Error fetching candlestick data" });
