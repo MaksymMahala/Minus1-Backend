@@ -3,39 +3,38 @@ const axios = require("axios");
 class CryptoAPIService {
   async fetchCandles(symbol, interval, limit) {
     try {
-      // Binance API endpoint for candlestick data
-      const url = `https://api.binance.com/api/v3/klines`;
+      // CryptoCompare API endpoint
+      const url = `https://min-api.cryptocompare.com/data/v2/histoday`;
 
-      // Set up the query parameters
+      // Set up query parameters
       const params = {
-        symbol: symbol.toUpperCase(), // Convert symbol to uppercase (e.g. BTCUSDT)
-        interval: interval, // Interval such as '1m', '5m', '1h', etc.
-        limit: limit, // Limit the number of results (e.g. 5)
+        fsym: symbol, // Symbol for the cryptocurrency (e.g., BTC)
+        tsym: "USD", // Currency symbol (e.g., USD)
+        limit: limit, // Limit the number of results
+        toTs: Math.floor(Date.now() / 1000), // Current timestamp (optional)
+        e: "Binance", // Exchange (Binance is one of the options)
       };
 
-      // Make the API request to Binance
       const response = await axios.get(url, { params });
 
-      if (response.data) {
-        // Map the data into the format you need (timestamp, open, close, high, low)
-        const candles = response.data.map((candle) => {
-          return {
-            timestamp: candle[0], // Timestamp (in milliseconds)
-            open: parseFloat(candle[1]), // Open price
-            high: parseFloat(candle[2]), // High price
-            low: parseFloat(candle[3]), // Low price
-            close: parseFloat(candle[4]), // Close price
-          };
-        });
+      if (response.data && response.data.Data && response.data.Data.Data) {
+        // Format the candlestick data
+        const candles = response.data.Data.Data.map((candle) => ({
+          timestamp: candle.time * 1000, // Convert from seconds to milliseconds
+          open: candle.open,
+          high: candle.high,
+          low: candle.low,
+          close: candle.close,
+        }));
 
         console.log("Data fetched successfully:", candles);
         return candles; // Return candlestick data
       } else {
-        console.error("No data received from Binance");
+        console.error("No data received from CryptoCompare");
         return null;
       }
     } catch (error) {
-      console.error("Error fetching data from Binance:", error.message);
+      console.error("Error fetching data from CryptoCompare:", error.message);
       throw error; // Re-throw error for further handling
     }
   }
