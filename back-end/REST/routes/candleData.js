@@ -18,7 +18,12 @@ class CryptoAPIService {
         return null;
       }
     } catch (error) {
-      console.error("Error fetching data from Binance:", error.message);
+      // Handle specific error codes
+      if (error.response && error.response.status === 451) {
+        console.error("Error: Legal reasons or geo-blocking. Request blocked.");
+      } else {
+        console.error("Error fetching data from Binance:", error.message);
+      }
       throw error; // Re-throw the error for further handling
     }
   }
