@@ -3,25 +3,39 @@ const axios = require("axios");
 class CryptoAPIService {
   async fetchCandles(symbol, interval, limit) {
     try {
-      // CoinGecko API endpoint with the necessary parameters
-      const url = `https://api.coingecko.com/api/v3/coins/${symbol}/market_chart?vs_currency=usd&days=${limit}&interval=${interval}`;
+      // Binance API endpoint for candlestick data
+      const url = `https://api.binance.com/api/v3/klines`;
 
-      // If API key is required, add it to the headers
-      const response = await axios.get(url, {
-        headers: {
-          Authorization: "Bearer CG-ihZ3z57st7v4uH98rhiY9BWK", // Replace with your API key
-        },
-      });
+      // Set up the query parameters
+      const params = {
+        symbol: symbol.toUpperCase(), // Convert symbol to uppercase (e.g. BTCUSDT)
+        interval: interval, // Interval such as '1m', '5m', '1h', etc.
+        limit: limit, // Limit the number of results (e.g. 5)
+      };
 
-      if (response.data && response.data.prices) {
-        console.log("Data fetched successfully:", response.data.prices);
-        return response.data.prices; // Return candlestick data
+      // Make the API request to Binance
+      const response = await axios.get(url, { params });
+
+      if (response.data) {
+        // Map the data into the format you need (timestamp, open, close, high, low)
+        const candles = response.data.map((candle) => {
+          return {
+            timestamp: candle[0], // Timestamp (in milliseconds)
+            open: parseFloat(candle[1]), // Open price
+            high: parseFloat(candle[2]), // High price
+            low: parseFloat(candle[3]), // Low price
+            close: parseFloat(candle[4]), // Close price
+          };
+        });
+
+        console.log("Data fetched successfully:", candles);
+        return candles; // Return candlestick data
       } else {
-        console.error("No data received from CoinGecko");
+        console.error("No data received from Binance");
         return null;
       }
     } catch (error) {
-      console.error("Error fetching data from CoinGecko:", error.message);
+      console.error("Error fetching data from Binance:", error.message);
       throw error; // Re-throw error for further handling
     }
   }
