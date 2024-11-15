@@ -114,29 +114,45 @@ const cryptoAPIService = new CryptoAPIService();
 app.get("/api/candles", async (req, res) => {
   const { symbol, interval, limit } = req.query;
 
+  // Check for missing parameters
   if (!symbol || !interval || !limit) {
     return res.status(400).json({ error: "Missing required parameters" });
   }
 
   try {
+    // Fetch candlestick data from the API
     const candles = await cryptoAPIService.fetchCandles(
       symbol,
       interval,
       parseInt(limit)
     );
 
-    if (candles) {
+    // Check if the data exists
+    if (candles && candles.length > 0) {
       res.status(200).json(candles); // Send candlestick data in the response
     } else {
+      console.error(
+        `No candlestick data found for ${symbol} with interval ${interval} and limit ${limit}`
+      );
       res.status(500).json({ error: "No candlestick data found" });
     }
   } catch (error) {
     console.error("Error fetching candlestick data:", error.message);
+
+    // Log more information for debugging
+    if (error.response) {
+      console.error("API Response Error:", error.response.data); // Detailed error from API response
+      console.error("API Response Status:", error.response.status); // Status code
+    } else if (error.request) {
+      console.error("API Request Error:", error.request); // Request info if the response is not received
+    } else {
+      console.error("General Error:", error.message); // Other errors
+    }
+
     res.status(500).json({ error: "Error fetching candlestick data" });
   }
 });
 
-// Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: true, message: "Internal Server Error" });
