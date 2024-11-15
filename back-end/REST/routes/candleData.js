@@ -1,30 +1,24 @@
 const axios = require("axios");
 
 class CryptoAPIService {
-  // Fetch candlestick data from Binance
   async fetchCandles(symbol, interval, limit) {
     try {
-      const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+      // CoinGecko API endpoint for market chart data
+      const url = `https://api.coingecko.com/api/v3/coins/${symbol}/market_chart?vs_currency=usd&days=${limit}&interval=${interval}`;
 
-      // Make a GET request to Binance API
+      // Fetch data from CoinGecko
       const response = await axios.get(url);
 
-      // Check if data is received
-      if (response.data && response.data.length > 0) {
-        console.log("Data fetched successfully:", response.data);
-        return response.data; // Return candlestick data
+      if (response.data && response.data.prices) {
+        console.log("Data fetched successfully:", response.data.prices);
+        return response.data.prices; // Return candlestick data
       } else {
-        console.error("No data received from Binance");
+        console.error("No data received from CoinGecko");
         return null;
       }
     } catch (error) {
-      // Handle specific error codes
-      if (error.response && error.response.status === 451) {
-        console.error("Error: Legal reasons or geo-blocking. Request blocked.");
-      } else {
-        console.error("Error fetching data from Binance:", error.message);
-      }
-      throw error; // Re-throw the error for further handling
+      console.error("Error fetching data from CoinGecko:", error.message);
+      throw error; // Re-throw error for further handling
     }
   }
 }

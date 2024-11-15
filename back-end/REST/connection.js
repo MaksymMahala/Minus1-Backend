@@ -114,13 +114,11 @@ const cryptoAPIService = new CryptoAPIService();
 app.get("/api/candles", async (req, res) => {
   const { symbol, interval, limit } = req.query;
 
-  // Validate required parameters
   if (!symbol || !interval || !limit) {
     return res.status(400).json({ error: "Missing required parameters" });
   }
 
   try {
-    // Fetch candlestick data
     const candles = await cryptoAPIService.fetchCandles(
       symbol,
       interval,
