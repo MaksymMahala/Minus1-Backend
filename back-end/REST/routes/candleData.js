@@ -27,18 +27,15 @@ class CryptoAPIService {
           url = `https://min-api.cryptocompare.com/data/v2/histoday`; // For daily data
           break;
         case "week":
-          // Fetching weekly data as a workaround (52 weeks)
           params.limit = Math.min(limit, 52); // Set a reasonable limit of 52 weeks
           url = `https://min-api.cryptocompare.com/data/v2/histoday`;
           break;
         case "month":
-          // Fetching monthly data as a workaround (12 months)
           params.limit = Math.min(limit, 12); // Set a reasonable limit of 12 months
           url = `https://min-api.cryptocompare.com/data/v2/histoday`;
           break;
         case "year":
-          // Fetching yearly data as a workaround (5-10 years)
-          params.limit = Math.min(limit, 730); // Set a reasonable limit of 730 days (roughly 2 years)
+          params.limit = Math.min(limit, 730); // Set a reasonable limit of 730 days (approximately 2 years)
           url = `https://min-api.cryptocompare.com/data/v2/histoday`;
           break;
         default:
@@ -50,13 +47,19 @@ class CryptoAPIService {
 
       // Check if the response contains the expected data
       if (response.data && response.data.Data && response.data.Data.Data) {
-        // Format the candlestick data
+        // Format the candlestick data with additional properties
         const candles = response.data.Data.Data.map((candle) => ({
-          timestamp: candle.time * 1000, // Convert from seconds to milliseconds
+          openTime: new Date(candle.time * 1000), // Convert from seconds to milliseconds
           open: candle.open,
           high: candle.high,
           low: candle.low,
           close: candle.close,
+          volume: candle.volumefrom || 0, // Assuming `volumefrom` represents base asset volume
+          closeTime: new Date((candle.time + 86400) * 1000), // Add 1 day for closeTime (if using daily data)
+          quoteAssetVolume: candle.volumeto || 0, // Assuming `volumeto` represents quote asset volume
+          numberOfTrades: candle.trades || 0, // Assuming `trades` represents the number of trades
+          takerBuyBaseAssetVolume: candle.takerBuyBaseAssetVolume || 0, // Example field, might need adjustment
+          takerBuyQuoteAssetVolume: candle.takerBuyQuoteAssetVolume || 0, // Example field, might need adjustment
         }));
 
         console.log("Data fetched successfully:", candles);
