@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
-const WebSocket = require("ws");
+const bcrypt = require("bcrypt");
 const expressWs = require("express-ws");
 const mongoose = require("mongoose");
 
@@ -13,12 +13,25 @@ const { loadCryptocurrencies } = require("../Constants/JSONReader");
 const register = require("./routes/register");
 const login = require("./routes/login");
 const lastPrices = require("./routes/last-prices");
+const editProfile = require("./routes/edit-profile");
+const getClientData = require("./routes/getClientData");
 const CryptoAPIService = require("./routes/candleData");
+const cryptoAPIService = new CryptoAPIService();
 
 const PORT = 5500;
 
 const app = express();
-expressWs(app); // Initialize express-ws with your app
+expressWs(app);
+app.use(express.json());
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: true, message: "Internal Server Error" });
+});
+app.use("/api", register);
+app.use("/api", login);
+app.use("/api", lastPrices);
+app.use("/api", editProfile);
+app.use("/api", getClientData);
 
 mongoose
   .connect(
@@ -34,8 +47,44 @@ mongoose
     process.exit(1);
   });
 
+app.get("/api/convert", async (req, res) => {
+  const { from, to, amount } = req.query;
+
+  if (!from || !to || !amount) {
+    return res
+      .status(400)
+      .json({ error: "Please provide 'from', 'to', and 'amount' parameters" });
+  }
+
+  try {
+    // Fetch the conversion rate from Binance API
+    const response = await axios.get(
+      `https://api.binance.com/api/v3/ticker/price?symbol=${from}${to}`
+    );
+    const conversionRate = parseFloat(response.data.price);
+
+    // Calculate the converted amount
+    const convertedAmount = parseFloat(amount) * conversionRate;
+
+    res.status(200).json({
+      from,
+      to,
+      amount: parseFloat(amount),
+      conversionRate,
+      convertedAmount,
+    });
+  } catch (error) {
+    console.error("Error fetching conversion rate:", error.message);
+
+    if (error.response && error.response.status === 404) {
+      return res.status(404).json({ error: "Invalid cryptocurrency pair" });
+    }
+
+    res.status(500).json({ error: "An error occurred during conversion" });
+  }
+});
+
 app.use(cors());
-app.use(express.json());
 
 // Middleware to log requests
 app.use((req, res, next) => {
@@ -104,13 +153,6 @@ app.get("/api/cryptocurrency/:symbol", async (req, res) => {
   }
 });
 
-// Authentication routes
-app.use("/api", register);
-app.use("/api", login);
-app.use("/api", lastPrices);
-
-const cryptoAPIService = new CryptoAPIService();
-
 app.get("/api/candles", async (req, res) => {
   const { symbol, interval, limit } = req.query;
 
@@ -151,11 +193,6 @@ app.get("/api/candles", async (req, res) => {
 
     res.status(500).json({ error: "Error fetching candlestick data" });
   }
-});
-
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: true, message: "Internal Server Error" });
 });
 
 //MARK: Prices by symbol -----> !!!!!
