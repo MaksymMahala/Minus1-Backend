@@ -99,7 +99,22 @@ app.get("/", (req, res) => {
   );
 });
 
-// Cryptocurrency routes
+async function getCryptoLastPrice(symbol) {
+  try {
+    const response = await axios.get(
+      `https://api.binance.com/api/v3/ticker/price`,
+      {
+        params: { symbol: symbol },
+      }
+    );
+    return response.data.price; // Return the last price
+  } catch (error) {
+    console.error("Error fetching price for symbol:", symbol, error);
+    throw new Error("Failed to fetch price from Binance");
+  }
+}
+
+// Route to get all cryptocurrencies with last price
 app.get("/api/cryptocurrencies", async (req, res) => {
   try {
     const cryptocurrencies = await loadCryptocurrencies();
@@ -108,7 +123,16 @@ app.get("/api/cryptocurrencies", async (req, res) => {
         .status(404)
         .json({ error: true, message: "No cryptocurrencies found" });
     }
-    res.status(200).json(cryptocurrencies);
+
+    // Adding last price to each cryptocurrency
+    const cryptocurrenciesWithPrices = await Promise.all(
+      cryptocurrencies.map(async (crypto) => {
+        const lastPrice = await getCryptoLastPrice(crypto.symbol);
+        return { ...crypto, lastPrice }; // Add the last price to the crypto object
+      })
+    );
+
+    res.status(200).json(cryptocurrenciesWithPrices);
   } catch (error) {
     console.error("Error loading cryptocurrencies:", error);
     res
@@ -117,21 +141,54 @@ app.get("/api/cryptocurrencies", async (req, res) => {
   }
 });
 
-// Recent and top cryptocurrencies
+// Route to get recent cryptocurrencies with last price
 app.get("/api/recent-cryptocurrencies", async (req, res) => {
-  const cryptocurrencies = await loadCryptocurrencies();
-  const recentCryptos = cryptocurrencies.filter((crypto) =>
-    recentCryptoCurrencySymbols.has(crypto.symbol)
-  );
-  res.status(200).json(recentCryptos);
+  try {
+    const cryptocurrencies = await loadCryptocurrencies();
+    const recentCryptos = cryptocurrencies.filter((crypto) =>
+      recentCryptoCurrencySymbols.has(crypto.symbol)
+    );
+
+    // Adding last price to each cryptocurrency
+    const recentCryptosWithPrices = await Promise.all(
+      recentCryptos.map(async (crypto) => {
+        const lastPrice = await getCryptoLastPrice(crypto.symbol);
+        return { ...crypto, lastPrice }; // Add the last price to the crypto object
+      })
+    );
+
+    res.status(200).json(recentCryptosWithPrices);
+  } catch (error) {
+    console.error("Error loading recent cryptocurrencies:", error);
+    res
+      .status(500)
+      .json({ error: true, message: "Error loading recent cryptocurrencies" });
+  }
 });
 
+// Route to get top cryptocurrencies with last price
 app.get("/api/top-cryptocurrencies", async (req, res) => {
-  const cryptocurrencies = await loadCryptocurrencies();
-  const topCryptos = cryptocurrencies.filter((crypto) =>
-    topCryptoCurrencySymbols.has(crypto.symbol)
-  );
-  res.status(200).json(topCryptos);
+  try {
+    const cryptocurrencies = await loadCryptocurrencies();
+    const topCryptos = cryptocurrencies.filter((crypto) =>
+      topCryptoCurrencySymbols.has(crypto.symbol)
+    );
+
+    // Adding last price to each cryptocurrency
+    const topCryptosWithPrices = await Promise.all(
+      topCryptos.map(async (crypto) => {
+        const lastPrice = await getCryptoLastPrice(crypto.symbol);
+        return { ...crypto, lastPrice }; // Add the last price to the crypto object
+      })
+    );
+
+    res.status(200).json(topCryptosWithPrices);
+  } catch (error) {
+    console.error("Error loading top cryptocurrencies:", error);
+    res
+      .status(500)
+      .json({ error: true, message: "Error loading top cryptocurrencies" });
+  }
 });
 
 app.get("/api/cryptocurrency/:symbol", async (req, res) => {
