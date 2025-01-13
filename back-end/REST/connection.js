@@ -124,15 +124,21 @@ app.get("/api/cryptocurrencies", async (req, res) => {
         .json({ error: true, message: "No cryptocurrencies found" });
     }
 
-    // Adding last price to each cryptocurrency
-    const cryptocurrenciesWithPrices = await Promise.all(
+    // Adding last price and other fields
+    const cryptocurrenciesWithDetails = await Promise.all(
       cryptocurrencies.map(async (crypto) => {
         const lastPrice = await getCryptoLastPrice(crypto.symbol);
-        return { ...crypto, lastPrice }; // Add the last price to the crypto object
+        return {
+          id: crypto.id, // Ensure `id` is available in `crypto`
+          name: crypto.name, // Ensure `name` is available in `crypto`
+          symbol: crypto.symbol,
+          price: lastPrice, // Add last price as `price`
+          icon: crypto.icon || "", // Provide a default or use an available `icon` field
+        };
       })
     );
 
-    res.status(200).json(cryptocurrenciesWithPrices);
+    res.status(200).json(cryptocurrenciesWithDetails);
   } catch (error) {
     console.error("Error loading cryptocurrencies:", error);
     res
@@ -141,7 +147,6 @@ app.get("/api/cryptocurrencies", async (req, res) => {
   }
 });
 
-// Route to get recent cryptocurrencies with last price
 app.get("/api/recent-cryptocurrencies", async (req, res) => {
   try {
     const cryptocurrencies = await loadCryptocurrencies();
@@ -149,15 +154,21 @@ app.get("/api/recent-cryptocurrencies", async (req, res) => {
       recentCryptoCurrencySymbols.has(crypto.symbol)
     );
 
-    // Adding last price to each cryptocurrency
-    const recentCryptosWithPrices = await Promise.all(
+    // Adding last price and other fields
+    const recentCryptosWithDetails = await Promise.all(
       recentCryptos.map(async (crypto) => {
         const lastPrice = await getCryptoLastPrice(crypto.symbol);
-        return { ...crypto, lastPrice }; // Add the last price to the crypto object
+        return {
+          id: crypto.id,
+          name: crypto.name,
+          symbol: crypto.symbol,
+          price: lastPrice,
+          icon: crypto.icon || "",
+        };
       })
     );
 
-    res.status(200).json(recentCryptosWithPrices);
+    res.status(200).json(recentCryptosWithDetails);
   } catch (error) {
     console.error("Error loading recent cryptocurrencies:", error);
     res
@@ -165,8 +176,6 @@ app.get("/api/recent-cryptocurrencies", async (req, res) => {
       .json({ error: true, message: "Error loading recent cryptocurrencies" });
   }
 });
-
-// Route to get top cryptocurrencies with last price
 app.get("/api/top-cryptocurrencies", async (req, res) => {
   try {
     const cryptocurrencies = await loadCryptocurrencies();
@@ -174,15 +183,21 @@ app.get("/api/top-cryptocurrencies", async (req, res) => {
       topCryptoCurrencySymbols.has(crypto.symbol)
     );
 
-    // Adding last price to each cryptocurrency
-    const topCryptosWithPrices = await Promise.all(
+    // Adding last price and other fields
+    const topCryptosWithDetails = await Promise.all(
       topCryptos.map(async (crypto) => {
         const lastPrice = await getCryptoLastPrice(crypto.symbol);
-        return { ...crypto, lastPrice }; // Add the last price to the crypto object
+        return {
+          id: crypto.id,
+          name: crypto.name,
+          symbol: crypto.symbol,
+          price: lastPrice,
+          icon: crypto.icon || "",
+        };
       })
     );
 
-    res.status(200).json(topCryptosWithPrices);
+    res.status(200).json(topCryptosWithDetails);
   } catch (error) {
     console.error("Error loading top cryptocurrencies:", error);
     res
