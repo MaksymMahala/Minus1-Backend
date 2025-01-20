@@ -33,19 +33,13 @@ app.use("/api", lastPrices);
 app.use("/api", editProfile);
 app.use("/api", getClientData);
 
+const dbURI =
+  "mongodb+srv://maximmagala:ESCVb1cwYzyixVNE@minus1.qlylc.mongodb.net/?retryWrites=true&w=majority&appName=Minus1";
+
 mongoose
-  .connect(
-    "mongodb+srv://maximmagala:ESCVb1cwYzyixVNE@minus1.qlylc.mongodb.net/?retryWrites=true&w=majority&appName=Minus1",
-    {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    }
-  )
+  .connect(dbURI)
   .then(() => console.log("MongoDB connected successfully"))
-  .catch((error) => {
-    console.error("MongoDB connection error:", error);
-    process.exit(1);
-  });
+  .catch((err) => console.error("MongoDB connection error:", err));
 
 app.get("/api/convert", async (req, res) => {
   const { from, to, amount } = req.query;
