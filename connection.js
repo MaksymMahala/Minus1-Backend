@@ -286,6 +286,11 @@ app.get("/api/prices/:symbol", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+app.get("/", (req, res) => {
+  res.send("Hello, world!");
+});
+
+const port = process.env.PORT || 5500;
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 });
